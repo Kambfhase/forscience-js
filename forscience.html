@@ -2,26 +2,243 @@
 <html>
 	<head>
 		<meta charset="utf-8" />
+		<link href='http://fonts.googleapis.com/css?family=Raleway:400,900' rel='stylesheet' type='text/css'>
+		<style>
+	
+canvas {
+    position: fixed;
+    top:0;
+    left:0;
+    height:100%;
+    width:100%;
+    z-index: -1;
+}
+
+body {
+	font-family: 'RaleWay', sans-serif;
+	color: white;
+}
+
+#container {
+	width: 600px;
+	margin: 0 auto;
+}
+
+#demo1 {
+	width: 600px;
+	height: 300px;
+}
+
+h2 {
+	text-style: small-caps;
+}
+
+
+	</style>
 	</head>
 	<body>
-
+		<canvas style="display:none" id="canvas" width="285" height="285"></canvas>
+		<canvas style="display:none" id="canvas3" width="570" height="570"></canvas>
+		<canvas id="canvas2" width="570" height="570"></canvas>
+	
+		<div id=container>
+			<header>
+				<h1>FOR SCIENCE</h1>
+			</header>
+			<article>
+				<p>For this demo to work properly, please choose the number of cores your computer has. If you don't know that number, or need your computers computational power for something else, just pick 1.<br>
+				  (Cores: <span id=nthreads_disp>4</span>) <input id=nthreads type=range min=1 max=32 value=4 style=width:400px;></p>
+			</article>
+			<article>
+				<h2>hard to satisfy</h2>
+				<p>
+					This page demostrates a classic computational problem known as <tt>3-SAT</tt>. The task is, when presented with a formula in <tt>3-CNF</tt> to check if it is satisfiable. That job is so difficult, that computer scientists invented all sorts of algorithms, but none of them has succeded in finding an efficient one, yet. Many more of these difficult problems are known and together they form the group of <tt>NP-complete</tt> problems.
+				</p>
+			</article>
+			<article>
+				<h2>have a guess</h2>
+				<p>Even though no perfect efficent algorithm for <tt>3-SAT</tt> exists, there is a simple strategy which is pretty accurate: guessing. Short formulas are more likely to be satisfiable, than long formulas. So, when you are presented a short formula, just claim that it is satisfiable and most of the time you will be right. The terms <i>long, short</i> and <i> most of the time</i> strongly depend on the number of variables. The demo below will calculate the propability that a formula with 20 variables of a certain length will be satisfiable.</p>
+				
+				<div id=demo1>
+					
+				</div>
+				<button id=demo1go>GO!</button> <progress max=100 value=0 id=demo1progress style=display:none;>
+			</article>
+			<article>
+				<h2>stand back, I'm gonna try science</h2>
+				<p>In the above chart you will notice that all formulas of a length below 44 will most likely be satisfiable; Those above, will not. At the length 44 itself, the chances are pretty much 50:50. The next demo will let you calculate this turning point for all numbers of variables. </p>
+			</article>
+			<div id=demo2>
+			
+			</div>
+			<button id=demo2go>Go!</button><progress value=0 max=100 id=demo2progress>
+		</div>
+		<script src="http://code.jquery.com/jquery.min.js"></script>
+		<script src="http://cdnjs.cloudflare.com/ajax/libs/raphael/2.1.0/raphael-min.js"></script>
+		<script src="http://cdnjs.cloudflare.com/ajax/libs/graphael/0.5.1/g.raphael-min.js"></script>
+		<script src="http://cdnjs.cloudflare.com/ajax/libs/graphael/0.5.1/g.line-min.js"></script>
+		<script src="science.js"></script>
 		<script>
 
+$('#nthreads').on('change', function(){
+	$('#nthreads_disp').text($(this).val());
+}).trigger('change');
 
-var plain = new Worker("plain.js");
-var asm = new Worker("asm.js");
 
+(function(){
 
-function run( worker, n){
-	worker.postMessage(n);
-	worker.onmessage = function( event){
-		console.log( event.data);
+	function draw( arr){
+		var idx = [], i;
+		for(i=0;i<arr.length+1;i++){
+			idx[i] = i+1;
+		}
+		var r = Raphael("demo1");
+		r.linechart(30, 10, 550, 250, 
+			idx, 
+			[ arr ], 
+			{
+				smooth: true, 
+				colors: ['#FAC'], 
+				symbol: 'circle',
+				axis: '0 0 1 1',
+				axisxstep: 5
+			}
+		);
 	}
-}
+	
+	$('#demo1go').on('click',function(){
+		var from = 1, to = 100, T = to-from+1, curr = from;
+		var ms = Buffer();
+		var sig = Buffer();
+		$('#demo1progress').show('inline-block').attr('max',T).val(0);
 
-function kill( worker){
-	worker.terminate();
-}
+		sig.on('next', function(arg){
+			$('#demo1progress').val(sig.size());
+
+			if( sig.size() < T){
+				return;
+			}
+
+			var ret = [];
+			while( sig.size()){
+				ret.push( sig.shift());
+			}
+
+			$('#demo1progress').hide();
+			draw(ret);
+		});
+
+		ms.on('empty', function(){
+			if( curr < to){
+				ms.push({
+					m: ++curr,
+					n:10
+				});
+			}
+		})
+
+		sigma100Task(ms,sig);
+		ms.push({
+			m: curr,
+			n: 10
+		});
+	});
+})();
+
+
+
+		</script>
+		<script>
+//////////////////////////////////////////////////////////////////////////////////
+// A demonstration of a Canvas nebula effect
+// (c) 2010 by R Cecco. <http://www.professorcloud.com>
+// MIT License
+//
+// Please retain this copyright header in all versions of the software if
+// using significant parts of it
+//////////////////////////////////////////////////////////////////////////////////
+
+$(document).ready(function(){
+    // shim layer with setTimeout fallback
+    window.requestAnimFrame = (function(){
+    	return $.noop;
+      return  window.requestAnimationFrame       ||
+              window.webkitRequestAnimationFrame ||
+              window.mozRequestAnimationFrame    ||
+              function( callback ){
+                window.setTimeout(callback, 1000 / 60);
+              };
+    })();
+    (function ($) {
+            // The canvas element we are drawing into.
+            var $canvas = $('#canvas');
+            var $canvas2 = $('#canvas2');
+            var $canvas3 = $('#canvas3');
+            var ctx2 = $canvas2[0].getContext('2d');
+            var ctx = $canvas[0].getContext('2d');
+            var w = $canvas[0].width, h = $canvas[0].height;
+            var w = window.innerWidth, h = window.innerHeight;
+            var img = new Image();
+
+            // A puff.
+            var Puff = function(p) {
+                // var amtX = (window.innerWidth / 2);
+                // var amtY = (window.innerHeight / 2);
+                var opacity,
+                    sy = (Math.random()*285)>>0,
+                    sx = (Math.random()*285)>>0;
+
+                this.p = p;
+
+                this.move = function(timeFac) {
+                    p = this.p + 0.3 * timeFac;
+                    opacity = (Math.sin(p*0.05)*0.5);
+                    if(opacity <0) {
+                        p = opacity = 0;
+                        sy = (Math.random()*285)>>0;
+                        sx = (Math.random()*285)>>0;
+                    }
+                    this.p = p;
+                    ctx.globalAlpha = opacity;
+                    ctx.drawImage($canvas3[0], sy+p, sy+p, 285-(p*2),285-(p*2), 0,0, w, h);
+                };
+            };
+
+            var puffs = [];
+            var sortPuff = function(p1,p2) { return p1.p-p2.p; };
+            puffs.push( new Puff(0) );
+            puffs.push( new Puff(20) );
+            puffs.push( new Puff(40) );
+
+            var newTime, oldTime = 0, timeFac;
+
+            var loop = function() {
+                newTime = new Date().getTime();
+                if(oldTime === 0 ) {
+                    oldTime=newTime;
+                }
+                timeFac = (newTime-oldTime) * 0.1;
+                if(timeFac>3) {timeFac=3;}
+                oldTime = newTime;
+                puffs.sort(sortPuff);
+
+                for(var i=0;i<puffs.length;i++)
+                {
+                    puffs[i].move(timeFac/7.5);
+                }
+                ctx2.drawImage( $canvas[0] ,0,0, 570,570);
+                requestAnimFrame(loop);
+            };
+            // Turns out Chrome is much faster doing bitmap work if the bitmap is in an existing canvas rather
+            // than an IMG, VIDEO etc. So draw the big nebula image into canvas3
+            var $canvas3 = $('#canvas3');
+            var ctx3 = $canvas3[0].getContext('2d');
+            $(img).bind('load',null, function() {  ctx3.drawImage(img, 0,0, 570,570);  loop(); });
+            img.src = 'nebula.jpg';
+
+    })(jQuery);
+});
 		</script>
 	</body>
 </html>
+
