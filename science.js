@@ -40,24 +40,15 @@ function Buffer() {
 }
 
 function Thread(sharedInput, sharedOutput) {
-	var w = new Worker("simple.js"),
-		busy = false;
+	var w = new Worker("simple.js");
 
-	w.onmessage = function (arg) {
-		sharedOutput.push(arg.data);
-		busy = false;
-		next();
-	};
+	Iterator( sharedInput, sharedOutput, function( invalue, callback){
+		w.onmessage = function(arg){
+			callback(arg.data);
+		};
 
-	function next() {
-		if (!sharedInput.size() || busy) return;
-
-		var input = sharedInput.shift();
-		busy = true;
-		w.postMessage(input);
-	}
-
-	sharedInput.on('next', next);
+		w.postMessage(invalue);
+	});
 
 	var _interface = {
 		go: function () {
@@ -111,21 +102,31 @@ function sigma100(m, n, callback) {
 	}
 }
 
-function sigma100Task(inputBuffer, outputBuffer) {
+
+function Iterator( input, output, mapfn){
 	var busy = false;
 
-	function next(arg) {
-		if (!arg.size() || busy) return;
+	function next(input){
+		if(!input.size() || busy) return;
 
 		busy = true;
-		var cmd = arg.shift();
-		sigma100(cmd.m, cmd.n, function (ret) {
-
-			outputBuffer.push(ret);
+		mapfn( input.shift(), function(valout){
+			output.push(valout);
 			busy = false;
-			next(inputBuffer);
+			next(input);
 		});
 	}
 
-	inputBuffer.on('next', next);
+	input.on('next', next);
+	next(input);
+}
+
+function sigma100Task(inputBuffer, outputBuffer) {
+	Iterator( inputBuffer, outputBuffer,
+		function( inval, callback){
+		
+		var m = inval.m,
+			n = inval.n;
+		sigma100( m, n, callback);
+	}); 
 }
